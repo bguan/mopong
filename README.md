@@ -1,16 +1,9 @@
-# mopong
+# MoPong
 
-A new Flutter project.
+Mobile Version of Classic Pong Game for Educational Purpose.
 
-## Getting Started
+This is the Third in a series of projects for various Pong like games following [PyPong](https://github.com/bguan/pypong) and [Scratch Pong](https://scratch.mit.edu/projects/433809822).
 
-This project is a starting point for a Flutter application.
+This version is implemented using my favorite cross platform mobile development framework [Flutter](https://flutter.dev/) and the game engine [Flame](https://flame-engine.org/).
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The goal is to use as simple as possible techniques, not to be distracted by the bells and whistles of modern game engines.
