@@ -77,7 +77,7 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
 
 class Ball extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
   final radius = 4.0;
-  final sideSpin = 50.0;
+  final sideSpin = 150.0;
   final pause = 2.0;
   final random = Random();
   var isFirstDrawn = true;
