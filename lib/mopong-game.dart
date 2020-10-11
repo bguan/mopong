@@ -7,49 +7,57 @@ import 'package:flame/components/mixins/has_game_ref.dart';
 import 'package:flame/components/mixins/resizable.dart';
 import 'package:flame/flame_audio.dart';
 import 'package:flame/game.dart';
+import 'package:flame/gestures.dart';
 import 'package:flame/position.dart';
 import 'package:flame/text_config.dart';
 import 'package:flutter/material.dart';
-import 'package:sensors/sensors.dart';
 
 class Pad extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
   final bool isPlayer;
+  final double speed = 300.0; // px/sec
   bool firstDrawn = true;
-  double speed = 300.0; // px/sec
-  bool goRight = true; // tristate logic null for neutral
+  double direction = 0.0; // from -1 (max speed to L) to 1 (max speed to R)
 
   Pad([this.isPlayer = true]) : super() {
     anchor = Anchor.center;
     width = 100;
     height = 10;
-
-    if (isPlayer) {
-      gyroscopeEvents.listen((GyroscopeEvent event) {
-        if (event.y > .6) {
-          goRight = true;
-        } else if (event.y < -.6) {
-          goRight = false;
-        }
-      });
-    }
   }
 
   @override
   void update(double dt) {
     super.update(dt);
-    if (size == null ) return;
-    if (firstDrawn || gameRef.isOver) {
-      firstDrawn = false;
-      x = size.width / 2;
-      y = isPlayer ? size.height - height / 2 : gameRef.topMargin + height / 2;
-    } else if (isPlayer) {
-      x = x + (goRight ? 1 : -1) * dt * speed;
-      x = min(size.width, x);
-      x = max(0, x);
+    if (size == null) return;
+
+    if (isPlayer) {
+      if (gameRef.lastFingerX > (x + .3 * width)) {
+        direction = 1;
+      } else if (gameRef.lastFingerX < (x - .3 * width)) {
+        direction = -1;
+      } else {
+        direction = 0;
+      }
     } else {
       // computer controls opponent, go to direction of ball
-      goRight = (gameRef.ball.x > x);
-      x = x + (goRight ? 1 : -1) * dt * speed;
+      if (gameRef.ball.x > (x + .3 * width)) {
+        direction = 1;
+      } else if (gameRef.ball.x < (x - .3 * width)) {
+        direction = -1;
+      } else {
+        direction = 0;
+      }
+    }
+
+    if (firstDrawn || (gameRef.isOver && !isPlayer)) {
+      firstDrawn = false;
+      x = size.width / 2;
+      y = isPlayer
+          ? size.height - height / 2 - gameRef.margin
+          : gameRef.margin + height / 2;
+    } else if (isPlayer) {
+      x = max(0, min(size.width, x + direction * dt * speed));
+    } else {
+      x = x + direction * dt * speed;
     }
   }
 
@@ -57,7 +65,7 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
   void render(Canvas canvas) {
     final padRect = Rect.fromLTWH(x - width / 2, y - height / 2, width, height);
     final padPaint = Paint();
-    padPaint.color = this.isPlayer ? Colors.blue : Colors.red;
+    padPaint.color = isPlayer ? Colors.blue : Colors.red;
     canvas.drawRect(padRect, padPaint);
   }
 
@@ -71,6 +79,7 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
   final radius = 4.0;
   final sideSpin = 50.0;
   final pause = 2.0;
+  final random = Random();
   var isFirstDrawn = true;
   var vx = 0.0; // px/sec
   var vy = 400.0; // px/sec
@@ -100,19 +109,19 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
         // bounced right wall
         x = size.width;
         vx = -vx;
-      } else if (y < gameRef.topMargin) {
+      } else if (y < gameRef.margin) {
         // bounced top
         gameRef.audio.play('crash.wav');
         gameRef.addMyScore();
-        y = gameRef.topMargin;
+        y = gameRef.margin;
         vy = -vy;
         vx = 0;
         pauseCountDown = pause;
-      } else if (y > size.height) {
+      } else if (y > size.height - gameRef.margin) {
         // bounced bottom
         gameRef.audio.play('crash.wav');
         gameRef.addOpponentScore();
-        y = size.height;
+        y = size.height - gameRef.margin - 2*radius;
         vy = -vy;
         vx = 0;
         pauseCountDown = pause;
@@ -120,12 +129,12 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
         gameRef.audio.play('pop.wav');
         y = gameRef.opponentPad.y + gameRef.opponentPad.height / 2 + 1;
         vy = -vy;
-        vx += (gameRef.opponentPad.goRight ? 1 : -1) * sideSpin;
+        vx += (gameRef.opponentPad.direction + .5*(random.nextDouble() -.5)) * sideSpin;
       } else if (gameRef.myPad.touch(ballRect)) {
         gameRef.audio.play('pop.wav');
         y = gameRef.myPad.y - gameRef.myPad.height / 2 - 1;
         vy = -vy;
-        vx += (gameRef.myPad.goRight ? 1 : -1) * sideSpin;
+        vx += (gameRef.opponentPad.direction + .5*(random.nextDouble() -.5)) * sideSpin;
       }
 
       if (pauseCountDown <= 0) {
@@ -146,9 +155,12 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
   }
 }
 
-class MoPongGame extends BaseGame with HasWidgetsOverlay {
+class MoPongGame extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
   final audio = FlameAudio();
+  final margin = 80.0;
+  final txtCfg = TextConfig(fontSize: 20.0, color: Colors.white);
   final maxScore = 5;
+
   bool isOver = true;
   Pad myPad;
   Pad opponentPad;
@@ -156,13 +168,9 @@ class MoPongGame extends BaseGame with HasWidgetsOverlay {
   int myScore = 0;
   int opponentScore = 0;
   Widget overlay = null;
-  final topMargin = 40.0;
-  final txtCfg = TextConfig(fontSize: 20.0, color: Colors.white);
+  double lastFingerX = 0.0;
 
-  MoPongGame()
-      : myPad = Pad(),
-        opponentPad = Pad(false),
-        ball = Ball() {
+  MoPongGame(): myPad = Pad(), opponentPad = Pad(false), ball = Ball() {
     add(myPad);
     add(opponentPad);
     add(ball);
@@ -206,7 +214,11 @@ class MoPongGame extends BaseGame with HasWidgetsOverlay {
       addWidgetOverlay('OverMenu', overMenu);
       overlay = overMenu;
     }
-    txtCfg.render(canvas, "score ${myScore}:${opponentScore}", Position(15, 5));
+    txtCfg.render(canvas, "score ${myScore}:${opponentScore}", Position(20, 20));
     super.render(canvas);
+  }
+
+  void onHorizontalDragUpdate(DragUpdateDetails details) {
+    lastFingerX = details.globalPosition.dx;
   }
 }
