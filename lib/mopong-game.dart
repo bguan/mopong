@@ -134,7 +134,7 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
         gameRef.audio.play('pop.wav');
         y = gameRef.myPad.y - gameRef.myPad.height / 2 - 1;
         vy = -vy;
-        vx += (gameRef.opponentPad.direction + .5*(random.nextDouble() -.5)) * sideSpin;
+        vx += (gameRef.myPad.direction + .5*(random.nextDouble() -.5)) * sideSpin;
       }
 
       if (pauseCountDown <= 0) {
