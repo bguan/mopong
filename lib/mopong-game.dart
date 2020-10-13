@@ -121,7 +121,7 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
         // bounced bottom
         gameRef.audio.play('crash.wav');
         gameRef.addOpponentScore();
-        y = size.height - gameRef.margin - 2*radius;
+        y = size.height - gameRef.margin - 2 * radius;
         vy = -vy;
         vx = 0;
         pauseCountDown = pause;
@@ -129,12 +129,15 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
         gameRef.audio.play('pop.wav');
         y = gameRef.opponentPad.y + gameRef.opponentPad.height / 2 + 1;
         vy = -vy;
-        vx += (gameRef.opponentPad.direction + .5*(random.nextDouble() -.5)) * sideSpin;
+        vx +=
+            (gameRef.opponentPad.direction + .5 * (random.nextDouble() - .5)) *
+                sideSpin;
       } else if (gameRef.myPad.touch(ballRect)) {
         gameRef.audio.play('pop.wav');
         y = gameRef.myPad.y - gameRef.myPad.height / 2 - 1;
         vy = -vy;
-        vx += (gameRef.myPad.direction + .5*(random.nextDouble() -.5)) * sideSpin;
+        vx += (gameRef.myPad.direction + .5 * (random.nextDouble() - .5)) *
+            sideSpin;
       }
 
       if (pauseCountDown <= 0) {
@@ -155,7 +158,8 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPongGame> {
   }
 }
 
-class MoPongGame extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
+class MoPongGame extends BaseGame
+    with HasWidgetsOverlay, HorizontalDragDetector {
   final audio = FlameAudio();
   final margin = 80.0;
   final txtCfg = TextConfig(fontSize: 20.0, color: Colors.white);
@@ -170,10 +174,14 @@ class MoPongGame extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector
   Widget overlay = null;
   double lastFingerX = 0.0;
 
-  MoPongGame(): myPad = Pad(), opponentPad = Pad(false), ball = Ball() {
+  MoPongGame()
+      : myPad = Pad(),
+        opponentPad = Pad(false),
+        ball = Ball() {
     add(myPad);
     add(opponentPad);
     add(ball);
+    audio.loadAll(['pop.wav', 'crash.wav', 'tada.wav']);
   }
 
   void addMyScore() {
@@ -208,13 +216,15 @@ class MoPongGame extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector
             overlay = null;
             myScore = 0;
             opponentScore = 0;
+            audio.play('pop.wav');
           },
         ),
       );
       addWidgetOverlay('OverMenu', overMenu);
       overlay = overMenu;
     }
-    txtCfg.render(canvas, "score ${myScore}:${opponentScore}", Position(20, 20));
+    txtCfg.render(
+        canvas, "Score ${myScore}:${opponentScore}", Position(20, 20));
     super.render(canvas);
   }
 
