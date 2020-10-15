@@ -102,7 +102,6 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
       overlay = null;
     }
     mode = GameMode.single;
-    overlay = null;
     myScore = 0;
     oppoScore = 0;
     audio.play(POP_FILE);
@@ -113,6 +112,10 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
       removeWidgetOverlay(OVERLAY_ID);
       overlay = null;
     }
+
+    myScore = 0;
+    oppoScore = 0;
+    myPad.x = 0;
 
     mode = GameMode.waiting;
     myService = BonsoirService(
@@ -198,6 +201,9 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
       overlay = null;
     }
 
+    myScore = 0;
+    oppoScore = 0;
+    myPad.x = 0;
     hostAddress = InternetAddress(hostSvc.ip);
     hostPort = hostSvc.port;
     mode = GameMode.guest;
@@ -261,8 +267,10 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
 
   void errorHandler(error) async {
     mode = GameMode.over;
-    socket.close();
-    socket = null;
+    if (socket != null) {
+      socket.close();
+      socket = null;
+    }
 
     if (myBroadcast != null) {
       await myBroadcast.stop();
@@ -273,8 +281,10 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
 
   void finishedHandler() async {
     mode = GameMode.over;
-    socket.close();
-    socket = null;
+    if (socket != null) {
+      socket.close();
+      socket = null;
+    }
 
     if (myBroadcast != null) {
       await myBroadcast.stop();
