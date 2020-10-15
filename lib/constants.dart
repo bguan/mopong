@@ -1,6 +1,6 @@
 const BUTTON_SIZE_RATIO = .7;
-const PONG_GAME_SVC_TYPE = '_pong._udp';
-const PONG_GAME_SVC_PORT = 13579;
+const PONG_SVC_TYPE = '_pong._udp';
+const PONG_PORT = 13579;
 const POP_FILE = 'pop.wav';
 const CRASH_FILE = 'crash.wav';
 const TADA_FILE = 'tada.wav';
@@ -12,7 +12,7 @@ const PAD_HEIGHT = 10.0;
 const PAD_WIDTH = 100.0;
 const PAD_SPEED = 300.0; // px/sec
 const BALL_RAD = 4.0;
-const SPIN = 150.0; // side spin when pad is moving while ball strike
+const SPIN = 100.0; // side spin when pad is moving while ball strike
 const PAUSE_INTERVAL = 2.0; // pause in secs when a point is scored
 
 enum GameMode {
