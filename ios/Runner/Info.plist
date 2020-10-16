@@ -45,7 +45,7 @@
 	<string>Looking for local tcp Bonjour service</string>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_pong._udp</string>
+		<string>_mopong._udp</string>
 	</array>
 </dict>
 </plist>

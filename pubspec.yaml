@@ -14,6 +14,7 @@ dependencies:
   cupertino_icons: ^1.0.0
   flame: ^0.27.0
   bonsoir: ^0.1.2+2
+  synchronized: ^2.2.0+2
 
 dev_dependencies:
   flutter_test:
