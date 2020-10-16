@@ -17,12 +17,7 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
   var speed = 300.0; // px/sec until resize
   var spin = 100.0; // px/sec until resize
   var vy = 300.0; // px/sec until resize
-  var pauseRundown = 0.0;
-  get mode => gameRef?.mode;
-  get isOver => gameRef?.isOver;
-  get isHost => mode == GameMode.host;
-  get isGuest => mode == GameMode.guest;
-  get isWaiting => mode == GameMode.wait;
+  var pause = 0.0;
 
   Ball([double x = 10, double y = 100]) : super() {
     anchor = Anchor.center;
@@ -33,23 +28,25 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
   @override
   void update(double dt) {
     super.update(dt);
-    if (size == null || isOver || isWaiting) return;
+    if (size == null || gameRef.isOver || gameRef.isWaiting) return;
 
-    // always let host calculate ball state
-    if (isGuest) return;
+    if (vy < 0 && !gameRef.isSingle)
+      return; // let oppo update states in network game if ball leaving me
 
-    if (pauseRundown > 0) {
-      pauseRundown -= dt;
-      if (pauseRundown <= 0) {
-        if (y <= gameRef.margin + 2*gameRef.myPad.height) {
-          y = gameRef.margin + 2*gameRef.myPad.height + 3*rad;
-        } 
-        if (y >= size.height - gameRef.margin - 2*gameRef.myPad.height) {
-          y = size.height - gameRef.margin - 2*gameRef.myPad.height - 3*rad;
+    if (pause > 0) {
+      pause -= dt;
+      if (pause <= 0) {
+        if (y <= gameRef.margin + 2 * gameRef.oppoPad.height) {
+          y = gameRef.margin + 2 * gameRef.oppoPad.height + 3 * rad;
+        }
+        if (y >= size.height - gameRef.margin - 2 * gameRef.myPad.height) {
+          y = size.height - gameRef.margin - 2 * gameRef.myPad.height - 3 * rad;
         }
       }
     } else {
-      final rect = Rect.fromCircle(center: Offset(x, y), radius: 2*rad);
+      x = (x + dt * vx).clamp(0.0, size.width);
+      y = (y + dt * vy).clamp(gameRef.margin, size.height - gameRef.margin);
+      final rect = Rect.fromCircle(center: Offset(x, y), radius: rad);
       if (x <= 0) {
         // bounced left wall
         x = 0;
@@ -58,38 +55,37 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
         // bounced right wall
         x = size.width;
         vx = -vx;
-      } else if (gameRef.oppoPad.touch(rect)) {
+      } else if (gameRef.isSingle && gameRef.oppoPad.touch(rect) && vy < 0) {
         gameRef.audio.play(POP_FILE);
-        y = gameRef.oppoPad.y + gameRef.oppoPad.height;
+        y = gameRef.oppoPad.y + 2 * gameRef.oppoPad.height + 3 * rad;
         vy = -vy;
         vx += (gameRef.oppoPad.direction + (random.nextDouble() - .5)) * spin;
-      } else if (gameRef.myPad.touch(rect)) {
+      } else if (gameRef.myPad.touch(rect) && vy > 0) {
         gameRef.audio.play(POP_FILE);
-        y = gameRef.myPad.y - gameRef.myPad.height;
+        y = gameRef.myPad.y - 2 * gameRef.myPad.height - 3 * rad;
         vy = -vy;
         vx += (gameRef.myPad.direction + (random.nextDouble() - .5)) * spin;
-      } else if (y <= gameRef.margin) {
+      } else if (gameRef.isSingle && y <= gameRef.margin && vy < 0) {
         // bounced top
         gameRef.addMyScore();
         vx = 0;
-        pauseRundown = PAUSE_INTERVAL;
+        pause = PAUSE_INTERVAL;
         vy = -vy;
-      } else if (y >= size.height - gameRef.margin) {
+      } else if (y >= size.height - gameRef.margin && vy > 0) {
         // bounced bottom
         gameRef.addOpponentScore();
         vx = 0;
-        pauseRundown = PAUSE_INTERVAL;
+        pause = PAUSE_INTERVAL;
         vy = -vy;
       }
-
-      x = max(0, min(size.width, x + dt * vx));
-      y = max(gameRef.margin, min(size.height - gameRef.margin, y + dt * vy));
     }
+
+    if (gameRef.isHost || gameRef.isGuest) gameRef.sendStateUpdate();
   }
 
   @override
   void render(Canvas canvas) {
-    if (isOver || isWaiting) return;
+    if (gameRef.isOver || gameRef.isWaiting) return;
     final ballPaint = Paint();
     ballPaint.color = Colors.white;
     canvas.drawCircle(Offset(x, y), rad, ballPaint);

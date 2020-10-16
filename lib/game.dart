@@ -24,13 +24,20 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
   get mode => _mode;
 
   bool get isOver => mode == GameMode.over;
+  bool get isGuest => mode == GameMode.guest;
+  bool get isHost => mode == GameMode.host;
+  bool get isWaiting => mode == GameMode.wait;
+  bool get isSingle => mode == GameMode.single;
+
   Pad myPad = Pad();
   Pad oppoPad = Pad(false);
   Ball ball = Ball();
-  int mySc = 0;
-  int oSc = 0;
+  int myScore = 0;
+  int oppoScore = 0;
   double lastFingerX = 0.0;
   double margin = 50; // until resize
+  int sndCount = 0; // to tag network packet sent for ordering
+  int rcvCount = -1; // to order network packet received
 
   final _lock = new Lock(); // to coordinate multiple incoming packets
 
@@ -43,22 +50,18 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
   }
 
   void addMyScore() {
-    if (mode == GameMode.single || mode == GameMode.host) {
-      audio.play(CRASH_FILE);
-      mySc += 1;
-      if (mySc >= MAX_SCORE) {
-        audio.play(TADA_FILE);
-      }
+    audio.play(CRASH_FILE);
+    myScore += 1;
+    if (myScore >= MAX_SCORE) {
+      audio.play(TADA_FILE);
     }
   }
 
   void addOpponentScore() {
-    if (mode == GameMode.single || mode == GameMode.host) {
-      audio.play(CRASH_FILE);
-      oSc += 1;
-      if (oSc >= MAX_SCORE) {
-        audio.play(WAHWAH_FILE);
-      }
+    audio.play(CRASH_FILE);
+    oppoScore += 1;
+    if (oppoScore >= MAX_SCORE) {
+      audio.play(WAHWAH_FILE);
     }
   }
 
@@ -77,14 +80,29 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
   @override
   void update(double t) async {
     super.update(t);
-    if (mode == GameMode.guest || mode == GameMode.host)
-      svc.send(PongData(myPad.x, ball.x, ball.y, ball.vx, ball.vy, mySc, oSc));
-
-    if (mySc >= MAX_SCORE || oSc >= MAX_SCORE) {
-      if (mode == GameMode.guest) svc.leaveGame();
-      if (mode == GameMode.host) svc.stopHosting();
+    if (myScore >= MAX_SCORE || oppoScore >= MAX_SCORE) {
+      if (isGuest) svc.leaveGame();
+      if (isHost) svc.stopHosting();
       showGameOverMenu();
     }
+  }
+
+  // send game state over network.
+  // let pad or ball trigger this to reduce traffic.
+  void sendStateUpdate() {
+    svc.send(
+      PongData(
+        sndCount++,
+        myPad.x,
+        ball.x,
+        ball.y,
+        ball.vx,
+        ball.vy,
+        ball.pause,
+        myScore,
+        oppoScore,
+      ),
+    );
   }
 
   void onDiscovery() {
@@ -98,7 +116,7 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
     bgPaint.color = Colors.black;
     canvas.drawRect(bgRect, bgPaint);
     if (isOver && overlay == null) showGameOverMenu();
-    txtCfg.render(canvas, "Score ${mySc}:${oSc}", Position(20, 20));
+    txtCfg.render(canvas, "Score ${myScore}:${oppoScore}", Position(20, 20));
     super.render(canvas);
   }
 
@@ -144,8 +162,8 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
 
   void _startSinglePlayer() {
     _safeRemoveOverlay();
-    mySc = 0;
-    oSc = 0;
+    myScore = 0;
+    oppoScore = 0;
     _mode = GameMode.single;
     audio.play(POP_FILE);
   }
@@ -153,8 +171,8 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
   void _hostNetGame() async {
     _safeRemoveOverlay();
     _mode = GameMode.wait;
-    mySc = 0;
-    oSc = 0;
+    myScore = 0;
+    oppoScore = 0;
     myPad.x = myPad.width / 2;
     ball.x = myPad.width / 2;
     ball.y = margin + 2 * myPad.height;
@@ -188,20 +206,18 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
       _mode = GameMode.host;
     }
     if (mode != GameMode.host) return;
-
     if (_lock.inLock) return; // ignore if in the middle of dealing w last
+    if (data.count < rcvCount && data.count.sign == rcvCount.sign)
+      return; // ignore if out of sequence and not underflow
 
-    _lock.synchronized(() async {
-      // only take oppo pad X from guest
-      oppoPad.x = data.px;
-    });
+    _lock.synchronized(() => _updateOnReceive(data));
   }
 
   void _joinNetGame(String hostSvcName) async {
     _safeRemoveOverlay();
     _mode = GameMode.guest;
-    mySc = 0;
-    oSc = 0;
+    myScore = 0;
+    oppoScore = 0;
     myPad.x = myPad.width / 2;
     ball.x = myPad.width / 2;
     ball.y = size.height - margin - 2 * myPad.height;
@@ -217,34 +233,40 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
 
   void _onMsgFromHost(PongData data) {
     if (mode != GameMode.guest) return;
-
     if (_lock.inLock) return; // ignore if in the middle of dealing w last
+    if (data.count < rcvCount && data.count.sign == rcvCount.sign)
+      return; // ignore if out of sequence and not underflow
 
-    _lock.synchronized(() async {
-      _safeRemoveOverlay();
-      if (mySc < data.sc || oSc < data.osc) {
-        // score changed, host must have detected crashed, play Crash
-        audio.play(CRASH_FILE);
-        if (data.osc == MAX_SCORE) {
+    _lock.synchronized(() => _updateOnReceive(data));
+    if (myScore == MAX_SCORE || oppoScore == MAX_SCORE) _leaveNetGame();
+  }
+
+  void _updateOnReceive(PongData data) async {
+    rcvCount = data.count;
+    oppoPad.x = data.px;
+    if (ball.vy < 0) {
+      // ball going away from me, let opponent update my states & scores
+      if (myScore < data.myScore || oppoScore < data.oppoScore) {
+        // score changed, opponent must have detected crashed, play Crash
+        if (data.oppoScore == MAX_SCORE) {
           audio.play(WAHWAH_FILE);
-        } else if (data.sc == MAX_SCORE) {
+        } else if (data.myScore == MAX_SCORE) {
           audio.play(TADA_FILE);
+        } else {
+          audio.play(CRASH_FILE);
         }
-      } else if (ball.vy != data.bvy) {
+      } else if (ball.vy.sign != data.bvy.sign) {
         // ball Y direction changed, host must have detected hit, play Pop
         audio.play(POP_FILE);
       }
 
-      oppoPad.x = data.px;
-      // always take ball state and score from host
-      mySc = data.sc;
-      oSc = data.osc;
+      myScore = data.myScore;
+      oppoScore = data.oppoScore;
       ball.x = data.bx;
       ball.y = data.by;
       ball.vx = data.bvx;
       ball.vy = data.bvy;
-
-      if (mySc == MAX_SCORE || oSc == MAX_SCORE) _leaveNetGame();
-    });
+      ball.pause = data.pause;
+    }
   }
 }

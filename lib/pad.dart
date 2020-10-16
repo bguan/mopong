@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'dart:ui';
 
 import 'package:flame/anchor.dart';
@@ -29,6 +28,7 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
 
     // regardless of mode, player always control self pad
     if (isPlayer) {
+      y = size.height - height - gameRef.margin;
       if (gameRef.lastFingerX > (x + .3 * width)) {
         direction = 1;
       } else if (gameRef.lastFingerX < (x - .3 * width)) {
@@ -36,11 +36,12 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
       } else {
         direction = 0;
       }
-      x = max(0, min(size.width, x + direction * dt * speed));
-      y = size.height - height - gameRef.margin;
+      x = (x + direction * dt * speed).clamp(0.0, size.width);
+      if (direction != 0 && (gameRef.isHost || gameRef.isGuest))
+        gameRef.sendStateUpdate();
     } else {
       y = gameRef.margin + height;
-      if (gameRef.mode == GameMode.single) {
+      if (gameRef.isSingle) {
         // computer controls opponent, go to direction of ball
         if (gameRef.ball.x > (x + .3 * width)) {
           direction = 1;
@@ -49,7 +50,7 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
         } else {
           direction = 0;
         }
-        x = x + direction * dt * speed;
+        x = (x + direction * dt * speed).clamp(0.0, size.width);
       } // let remote host set opponet pad X in MoPong Game event handler
     }
   }
