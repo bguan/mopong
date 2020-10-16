@@ -7,13 +7,13 @@ const TADA_FILE = 'tada.wav';
 const WAHWAH_FILE = 'wahwah.wav';
 const OVERLAY_ID = 'Overlay';
 const MAX_SCORE = 5;
-const MARGIN = 80.0;
-const PAD_HEIGHT = 10.0;
-const PAD_WIDTH = 100.0;
-const PAD_SPEED = 300.0; // px/sec
-const BALL_SPEED = 400.0; // px/sex
-const BALL_RAD = 4.0;
-const SPIN = 100.0; // side spin when pad is moving while ball strike
+const MARGIN_RATIO = .1; // of screen height
+const PAD_HEIGHT_RATIO = .01; 
+const PAD_WIDTH_RATIO = .25; // of screen width
+const PAD_SPEED_RATIO = .8; // of screen height per sec
+const BALL_SPEED_RATIO = 0.5; // of screen height per sec
+const BALL_RAD_RATIO = .005; // of screen height
+const SPIN_RATIO = .2; // of screen width, side spin of ball hitting moving pad
 const PAUSE_INTERVAL = 2.0; // pause in secs when a point is scored
 
 enum GameMode {

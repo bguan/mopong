@@ -13,12 +13,13 @@ import 'game.dart';
 class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
   final bool isPlayer;
   double direction = 0.0; // from -1 (max speed to L) to 1 (max speed to R)
+  double speed = 100; // px/sec, until resize
 
   Pad([this.isPlayer = true]) : super() {
     anchor = Anchor.center;
-    width = PAD_WIDTH;
-    height = PAD_HEIGHT;
     x = 0;
+    width = 100; // until resize
+    height = 10; // until resize
   }
 
   @override
@@ -35,10 +36,10 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
       } else {
         direction = 0;
       }
-      x = max(0, min(size.width, x + direction * dt * PAD_SPEED));
-      y = size.height - height / 2 - MARGIN;
+      x = max(0, min(size.width, x + direction * dt * speed));
+      y = size.height - height - gameRef.margin;
     } else {
-      y = MARGIN + height / 2;
+      y = gameRef.margin + height;
       if (gameRef.mode == GameMode.single) {
         // computer controls opponent, go to direction of ball
         if (gameRef.ball.x > (x + .3 * width)) {
@@ -48,21 +49,31 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
         } else {
           direction = 0;
         }
-        x = x + direction * dt * PAD_SPEED;
+        x = x + direction * dt * speed;
       } // let remote host set opponet pad X in MoPong Game event handler
     }
   }
 
   @override
   void render(Canvas canvas) {
-    final padRect = Rect.fromLTWH(x - width / 2, y - height / 2, width, height);
+    final padRect = Rect.fromLTWH(
+      x - width / 2, y - height / 2, width, height);
     final padPaint = Paint();
     padPaint.color = isPlayer ? Colors.blue : Colors.red;
     canvas.drawRect(padRect, padPaint);
   }
 
   bool touch(Rect objRect) {
-    final padRect = Rect.fromLTWH(x - width / 2, y - height / 2, width, height);
+    final padRect = Rect.fromLTWH(
+      x - width / 2, y - height / 2, width, height);
     return padRect.overlaps(objRect);
+  }
+
+  @override
+  void resize(Size size) {
+    super.resize(size);
+    speed = PAD_SPEED_RATIO * size.width;
+    height = PAD_HEIGHT_RATIO * size.height;
+    width = PAD_WIDTH_RATIO * size.width;
   }
 }

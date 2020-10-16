@@ -30,6 +30,7 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
   int mySc = 0;
   int oSc = 0;
   double lastFingerX = 0.0;
+  double margin = 50; // until resize
 
   final _lock = new Lock(); // to coordinate multiple incoming packets
 
@@ -69,6 +70,7 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
     } else {
       svc.width = size.width;
       svc.height = size.height;
+      margin = MARGIN_RATIO * size.height;
     }
   }
 
@@ -153,10 +155,10 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
     _mode = GameMode.wait;
     mySc = 0;
     oSc = 0;
-    myPad.x = PAD_WIDTH / 2;
-    ball.x = PAD_WIDTH / 2;
-    ball.y = MARGIN + 2 * PAD_HEIGHT;
-    ball.vy = BALL_SPEED;
+    myPad.x = myPad.width / 2;
+    ball.x = myPad.width / 2;
+    ball.y = margin + 2 * myPad.height;
+    ball.vy = ball.speed;
     ball.vx = 0;
     svc.startHosting((p) => _onMsgFromGuest(p), _stopHosting);
     overlay = Center(
@@ -200,10 +202,10 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
     _mode = GameMode.guest;
     mySc = 0;
     oSc = 0;
-    myPad.x = PAD_WIDTH / 2;
-    ball.x = PAD_WIDTH / 2;
-    ball.y = size.height - MARGIN - 2 * PAD_HEIGHT;
-    ball.vy = -BALL_SPEED;
+    myPad.x = myPad.width / 2;
+    ball.x = myPad.width / 2;
+    ball.y = size.height - margin - 2 * myPad.height;
+    ball.vy = -ball.speed;
     ball.vx = 0;
     svc.joinGame(hostSvcName, _onMsgFromHost, _leaveNetGame);
   }

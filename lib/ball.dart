@@ -13,7 +13,10 @@ import 'game.dart';
 class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
   final random = Random();
   var vx = 0.0; // px/sec
-  var vy = BALL_SPEED; // px/sec
+  var rad = 5.0; // until resize
+  var speed = 300.0; // px/sec until resize
+  var spin = 100.0; // px/sec until resize
+  var vy = 300.0; // px/sec until resize
   var pauseRundown = 0.0;
   get mode => gameRef?.mode;
   get isOver => gameRef?.isOver;
@@ -38,14 +41,15 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
     if (pauseRundown > 0) {
       pauseRundown -= dt;
       if (pauseRundown <= 0) {
-        if (y < MARGIN + 2*PAD_HEIGHT) {
-          y = MARGIN + 2*PAD_HEIGHT;
-        } else if (y > size.height - MARGIN - 2*PAD_HEIGHT) {
-          y = size.height - MARGIN - 2*PAD_HEIGHT;
+        if (y <= gameRef.margin + 2*gameRef.myPad.height) {
+          y = gameRef.margin + 2*gameRef.myPad.height + 3*rad;
+        } 
+        if (y >= size.height - gameRef.margin - 2*gameRef.myPad.height) {
+          y = size.height - gameRef.margin - 2*gameRef.myPad.height - 3*rad;
         }
       }
     } else {
-      final rect = Rect.fromCircle(center: Offset(x, y), radius: BALL_RAD);
+      final rect = Rect.fromCircle(center: Offset(x, y), radius: 2*rad);
       if (x <= 0) {
         // bounced left wall
         x = 0;
@@ -54,32 +58,32 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
         // bounced right wall
         x = size.width;
         vx = -vx;
-      } else if (y <= MARGIN) {
+      } else if (gameRef.oppoPad.touch(rect)) {
+        gameRef.audio.play(POP_FILE);
+        y = gameRef.oppoPad.y + gameRef.oppoPad.height;
+        vy = -vy;
+        vx += (gameRef.oppoPad.direction + (random.nextDouble() - .5)) * spin;
+      } else if (gameRef.myPad.touch(rect)) {
+        gameRef.audio.play(POP_FILE);
+        y = gameRef.myPad.y - gameRef.myPad.height;
+        vy = -vy;
+        vx += (gameRef.myPad.direction + (random.nextDouble() - .5)) * spin;
+      } else if (y <= gameRef.margin) {
         // bounced top
         gameRef.addMyScore();
         vx = 0;
         pauseRundown = PAUSE_INTERVAL;
-        vy = -vy; 
-      } else if (y >= size.height - MARGIN) {
+        vy = -vy;
+      } else if (y >= size.height - gameRef.margin) {
         // bounced bottom
         gameRef.addOpponentScore();
         vx = 0;
         pauseRundown = PAUSE_INTERVAL;
-        vy = -vy; 
-      } else if (gameRef.oppoPad.touch(rect)) {
-        gameRef.audio.play(POP_FILE);
-        y = gameRef.oppoPad.y + gameRef.oppoPad.height;
-        vy = -vy; 
-        vx += (gameRef.oppoPad.direction + (random.nextDouble() - .5)) * SPIN;
-      } else if (gameRef.myPad.touch(rect)) {
-        gameRef.audio.play(POP_FILE);
-        y = gameRef.myPad.y - gameRef.myPad.height;
-        vy = -vy; 
-        vx += (gameRef.myPad.direction + (random.nextDouble() - .5)) * SPIN;
+        vy = -vy;
       }
 
       x = max(0, min(size.width, x + dt * vx));
-      y = max(MARGIN, min(size.height - MARGIN, y + dt * vy));
+      y = max(gameRef.margin, min(size.height - gameRef.margin, y + dt * vy));
     }
   }
 
@@ -88,6 +92,15 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
     if (isOver || isWaiting) return;
     final ballPaint = Paint();
     ballPaint.color = Colors.white;
-    canvas.drawCircle(Offset(x, y), BALL_RAD, ballPaint);
+    canvas.drawCircle(Offset(x, y), rad, ballPaint);
+  }
+
+  @override
+  void resize(Size size) {
+    super.resize(size);
+    speed = BALL_SPEED_RATIO * size.height;
+    spin = SPIN_RATIO * size.width;
+    vy = vy.sign * speed;
+    rad = BALL_RAD_RATIO * size.height;
   }
 }
