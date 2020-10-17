@@ -28,5 +28,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+        <key>NSBonjourServices</key>
+        <array>
+                <string>_mopong._udp</string>
+        </array>
 </dict>
 </plist>

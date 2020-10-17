@@ -56,18 +56,18 @@ class PongData {
 int toInt16(double v, [double max = 32767]) => 32767 * v ~/ max;
 
 double fromInt16(Int16List d, int i, [double max = 32767]) =>
-    d != null && d.length > i ? max * d[i] / 32767 : 0;
+    d.length > i ? max * d[i] / 32767 : 0;
 
 /// Pong Networking Service for Host and Guest, incl discovery & communication.
 class PongNetSvc {
   String myName;
   double width, height; // size of my world
-  BonsoirService _mySvc = null; // network game I am hosting
-  BonsoirBroadcast _myBroadcast = null;
+  BonsoirService _mySvc; // network game I am hosting
+  BonsoirBroadcast _myBroadcast;
   Map<String, ResolvedBonsoirService> _host2svc = {}; // other hosts
   Function _onDiscovery;
-  InternetAddress _oppoAddress = null;
-  RawDatagramSocket _sock = null;
+  InternetAddress _oppoAddress;
+  RawDatagramSocket _sock;
 
   PongNetSvc(this.myName, this._onDiscovery, this.width, this.height) {
     _scan();
@@ -83,7 +83,7 @@ class PongNetSvc {
     discovery.eventStream.listen((e) {
       if (e.type == BonsoirDiscoveryEventType.DISCOVERY_SERVICE_RESOLVED) {
         if (_mySvc?.name != e.service.name) {
-          _host2svc[e.service.name] = e.service;
+          _host2svc[e.service.name] = (e.service) as ResolvedBonsoirService;
           this._onDiscovery();
         }
       } else if (e.type == BonsoirDiscoveryEventType.DISCOVERY_SERVICE_LOST) {
@@ -98,7 +98,7 @@ class PongNetSvc {
     await _safeStopBroadcast();
 
     _mySvc = BonsoirService(
-      name: 'Pong with ${myName}',
+      name: 'Pong with $myName',
       type: PONG_SVC_TYPE,
       port: PONG_PORT,
     );
@@ -121,7 +121,7 @@ class PongNetSvc {
     _safeCloseSocket();
   }
 
-  void joinGame(String name, Function(PongData) onMsg, Function onDone) async {
+  void joinGame(String name, void Function(PongData) onMsg, void Function() onDone) async {
     final hostSvc = _host2svc[name];
     _oppoAddress = InternetAddress(hostSvc.ip);
     _sock = await RawDatagramSocket.bind(InternetAddress.anyIPv4, PONG_PORT);
@@ -138,7 +138,7 @@ class PongNetSvc {
   }
 
   void send(PongData data) {
-    _sock.send(
+    _sock?.send(
       data.toNetBundle(width, height).buffer.asInt8List(),
       _oppoAddress,
       PONG_PORT,
@@ -153,12 +153,11 @@ class PongNetSvc {
       width,
       height,
     );
-    if (data.count == null) return; // bad data packet?
     _oppoAddress = packet.address;
     onMsg(data);
   }
 
-  void _finishedHandler(Function() onDone, [Object e = null]) {
+  void _finishedHandler(Function() onDone, [Object e]) {
     if (e != null) print(e);
     onDone();
   }
@@ -170,7 +169,7 @@ class PongNetSvc {
     }
   }
 
-  void _safeStopBroadcast() async {
+  Future<void> _safeStopBroadcast() async {
     if (_myBroadcast != null) {
       await _myBroadcast.stop();
       _myBroadcast = null;

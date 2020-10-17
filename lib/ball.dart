@@ -28,58 +28,64 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
   @override
   void update(double dt) {
     super.update(dt);
-    if (size == null || gameRef.isOver || gameRef.isWaiting) return;
+    if (gameRef.isOver || gameRef.isWaiting) return;
 
-    if (vy < 0 && !gameRef.isSingle)
-      return; // let oppo update states in network game if ball leaving me
+    // let opponent update states in network game if ball going away from me
+    if (vy < 0 && !gameRef.isSingle) return;
 
-    if (pause > 0) {
-      pause -= dt;
-      if (pause <= 0) {
-        if (y <= gameRef.margin + 2 * gameRef.oppoPad.height) {
-          y = gameRef.margin + 2 * gameRef.oppoPad.height + 3 * rad;
+    gameRef.lock.synchronized(() {
+      if (pause > 0) {
+        // if we are in a paused state, reduce the count down by elapsed time
+        pause -= dt;
+        if (pause <= 0) {
+          if (y <= gameRef.margin + 2 * gameRef.oppoPad.height) {
+            y = gameRef.margin + 2 * gameRef.oppoPad.height + 3 * rad;
+          }
+          if (y >= gameRef.height - gameRef.margin - 2 * gameRef.myPad.height) {
+            y = gameRef.height -
+                gameRef.margin -
+                2 * gameRef.myPad.height -
+                3 * rad;
+          }
         }
-        if (y >= size.height - gameRef.margin - 2 * gameRef.myPad.height) {
-          y = size.height - gameRef.margin - 2 * gameRef.myPad.height - 3 * rad;
+      } else {
+        x = (x + dt * vx).clamp(0.0, gameRef.width);
+        y = (y + dt * vy)
+            .clamp(gameRef.margin, gameRef.height - gameRef.margin);
+        final rect = Rect.fromCircle(center: Offset(x, y), radius: rad);
+        if (x <= 0) {
+          // bounced left wall
+          x = 0;
+          vx = -vx;
+        } else if (x >= gameRef.width) {
+          // bounced right wall
+          x = gameRef.width;
+          vx = -vx;
+        } else if (gameRef.isSingle && gameRef.oppoPad.touch(rect) && vy < 0) {
+          gameRef.audio.play(POP_FILE);
+          y = gameRef.oppoPad.y + 2 * gameRef.oppoPad.height + 3 * rad;
+          vy = -vy;
+          vx += (gameRef.oppoPad.direction + (random.nextDouble() - .5)) * spin;
+        } else if (gameRef.myPad.touch(rect) && vy > 0) {
+          gameRef.audio.play(POP_FILE);
+          y = gameRef.myPad.y - 2 * gameRef.myPad.height - 3 * rad;
+          vy = -vy;
+          vx += (gameRef.myPad.direction + (random.nextDouble() - .5)) * spin;
+        } else if (gameRef.isSingle && y <= gameRef.margin && vy < 0) {
+          // bounced top
+          gameRef.addMyScore();
+          vx = 0;
+          pause = PAUSE_INTERVAL;
+          vy = -vy;
+        } else if (y >= gameRef.height - gameRef.margin && vy > 0) {
+          // bounced bottom
+          gameRef.addOpponentScore();
+          vx = 0;
+          pause = PAUSE_INTERVAL;
+          vy = -vy;
         }
       }
-    } else {
-      x = (x + dt * vx).clamp(0.0, size.width);
-      y = (y + dt * vy).clamp(gameRef.margin, size.height - gameRef.margin);
-      final rect = Rect.fromCircle(center: Offset(x, y), radius: rad);
-      if (x <= 0) {
-        // bounced left wall
-        x = 0;
-        vx = -vx;
-      } else if (x >= size.width) {
-        // bounced right wall
-        x = size.width;
-        vx = -vx;
-      } else if (gameRef.isSingle && gameRef.oppoPad.touch(rect) && vy < 0) {
-        gameRef.audio.play(POP_FILE);
-        y = gameRef.oppoPad.y + 2 * gameRef.oppoPad.height + 3 * rad;
-        vy = -vy;
-        vx += (gameRef.oppoPad.direction + (random.nextDouble() - .5)) * spin;
-      } else if (gameRef.myPad.touch(rect) && vy > 0) {
-        gameRef.audio.play(POP_FILE);
-        y = gameRef.myPad.y - 2 * gameRef.myPad.height - 3 * rad;
-        vy = -vy;
-        vx += (gameRef.myPad.direction + (random.nextDouble() - .5)) * spin;
-      } else if (gameRef.isSingle && y <= gameRef.margin && vy < 0) {
-        // bounced top
-        gameRef.addMyScore();
-        vx = 0;
-        pause = PAUSE_INTERVAL;
-        vy = -vy;
-      } else if (y >= size.height - gameRef.margin && vy > 0) {
-        // bounced bottom
-        gameRef.addOpponentScore();
-        vx = 0;
-        pause = PAUSE_INTERVAL;
-        vy = -vy;
-      }
-    }
-
+    });
     if (gameRef.isHost || gameRef.isGuest) gameRef.sendStateUpdate();
   }
 
@@ -98,5 +104,7 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
     spin = SPIN_RATIO * size.width;
     vy = vy.sign * speed;
     rad = BALL_RAD_RATIO * size.height;
+    width = 2 * rad;
+    height = 2 * rad;
   }
 }

@@ -17,6 +17,7 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
   Pad([this.isPlayer = true]) : super() {
     anchor = Anchor.center;
     x = 0;
+    y = isPlayer ? 550 : 50; // until resize
     width = 100; // until resize
     height = 10; // until resize
   }
@@ -24,11 +25,10 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
   @override
   void update(double dt) {
     super.update(dt);
-    if (size == null) return;
 
     // regardless of mode, player always control self pad
     if (isPlayer) {
-      y = size.height - height - gameRef.margin;
+      y = gameRef.height - height - gameRef.margin;
       if (gameRef.lastFingerX > (x + .3 * width)) {
         direction = 1;
       } else if (gameRef.lastFingerX < (x - .3 * width)) {
@@ -36,7 +36,7 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
       } else {
         direction = 0;
       }
-      x = (x + direction * dt * speed).clamp(0.0, size.width);
+      x = (x + direction * dt * speed).clamp(0.0, gameRef.width);
       if (direction != 0 && (gameRef.isHost || gameRef.isGuest))
         gameRef.sendStateUpdate();
     } else {
@@ -50,23 +50,21 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
         } else {
           direction = 0;
         }
-        x = (x + direction * dt * speed).clamp(0.0, size.width);
+        x = (x + direction * dt * speed).clamp(0.0, gameRef.width);
       } // let remote host set opponet pad X in MoPong Game event handler
     }
   }
 
   @override
   void render(Canvas canvas) {
-    final padRect = Rect.fromLTWH(
-      x - width / 2, y - height / 2, width, height);
+    final padRect = Rect.fromLTWH(x - width / 2, y - height / 2, width, height);
     final padPaint = Paint();
     padPaint.color = isPlayer ? Colors.blue : Colors.red;
     canvas.drawRect(padRect, padPaint);
   }
 
   bool touch(Rect objRect) {
-    final padRect = Rect.fromLTWH(
-      x - width / 2, y - height / 2, width, height);
+    final padRect = Rect.fromLTWH(x - width / 2, y - height / 2, width, height);
     return padRect.overlaps(objRect);
   }
 
