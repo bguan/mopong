@@ -28,9 +28,11 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-        <key>NSBonjourServices</key>
-        <array>
-                <string>_mopong._udp</string>
-        </array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Looking for local tcp Bonjour service</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_mopong._udp</string>
+	</array>
 </dict>
 </plist>

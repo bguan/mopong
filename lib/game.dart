@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:clock/clock.dart';
 import 'package:flame/flame_audio.dart';
 import 'package:flame/game.dart';
 import 'package:flame/gestures.dart';
@@ -38,8 +39,10 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
   double margin = 50; // until resize
   int sndCount = 0; // to tag network packet sent for ordering
   int rcvCount = -1; // to order network packet received
+  DateTime lastRcvTstmp = clock.now(); // timestamp of last received
   double width = 400; // until resize
   double height = 600; // until resize
+  String topMsg;
 
   final lock = new Lock(); // to handle concurrent updates
 
@@ -77,7 +80,23 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
   @override
   void update(double t) async {
     super.update(t);
-    if (myScore >= MAX_SCORE || oppoScore >= MAX_SCORE) {
+    bool endGame = false;
+    if (myScore >= MAX_SCORE) {
+      endGame = true;
+      topMsg = "You've Won!";
+    } else if (oppoScore >= MAX_SCORE) {
+      endGame = true;
+      topMsg = "You've Lost!";
+    } else if (isHost || isGuest) {
+      final now = clock.now();
+      final waitLimit = lastRcvTstmp.add(MAX_NET_WAIT);
+      if (now.isAfter(waitLimit)) {
+        endGame = true;
+        topMsg = "Connection Interrupted.";
+      }
+    }
+
+    if (endGame) {
       if (isGuest) svc.leaveGame();
       if (isHost) svc.stopHosting();
       _showGameOverMenu();
@@ -125,10 +144,14 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          if (topMsg != null && topMsg.length > 0)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 20.0),
+              child: Text(topMsg),
+            ),
           _gameButton('Single Player', _startSinglePlayer),
           _gameButton('Host Network Game', _hostNetGame),
-          for (var sname in svc.serviceNames)
-            _gameButton('Play $sname', () => _joinNetGame(sname))
+          for (var sname in svc.serviceNames) _gameButton('Play $sname', () => _joinNetGame(sname))
         ],
       ),
     );
@@ -219,6 +242,7 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
     ball.vy = -ball.speed;
     ball.vx = 0;
     svc.joinGame(hostSvcName, _onMsgFromHost, _leaveNetGame);
+    lastRcvTstmp = clock.now();
   }
 
   void _leaveNetGame() {
@@ -238,6 +262,7 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
 
   void _updateOnReceive(PongData data) async {
     rcvCount = data.count;
+    lastRcvTstmp = clock.now();
     oppoPad.x = data.px;
     if (ball.vy < 0) {
       // ball going away from me, let opponent update my states & scores
