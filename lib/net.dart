@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+// ignore: import_of_legacy_library_into_null_safe
 import 'package:bonsoir/bonsoir.dart';
 
 import 'constants.dart';
@@ -13,22 +14,22 @@ import 'constants.dart';
 class PongData {
   final int count;
   final double px, bx, by, bvx, bvy, pause;
-  final int myScore, oppoScore; 
+  final int myScore, oppoScore;
 
   PongData(
-    this.count, 
-    this.px, 
-    this.bx, 
-    this.by, 
-    this.bvx, 
-    this.bvy, 
-    this.pause, 
-    this.myScore, 
+    this.count,
+    this.px,
+    this.bx,
+    this.by,
+    this.bvx,
+    this.bvy,
+    this.pause,
+    this.myScore,
     this.oppoScore,
   );
 
   PongData.fromPayload(Int16List data, double width, double height)
-      : count = fromInt16(data, 0, width).toInt(), 
+      : count = fromInt16(data, 0, width).toInt(),
         px = fromInt16(data, 1, width),
         bx = fromInt16(data, 2, width),
         by = fromInt16(data, 3, height),
@@ -62,12 +63,12 @@ double fromInt16(Int16List d, int i, [double max = 32767]) =>
 class PongNetSvc {
   String myName;
   double width, height; // size of my world
-  BonsoirService _mySvc; // network game I am hosting
-  BonsoirBroadcast _myBroadcast;
+  BonsoirService? _mySvc; // network game I am hosting
+  BonsoirBroadcast? _myBroadcast;
   Map<String, ResolvedBonsoirService> _host2svc = {}; // other hosts
   Function _onDiscovery;
-  InternetAddress _oppoAddress;
-  RawDatagramSocket _sock;
+  InternetAddress? _oppoAddress;
+  RawDatagramSocket? _sock;
 
   PongNetSvc(this.myName, this._onDiscovery, this.width, this.height) {
     _scan();
@@ -104,11 +105,11 @@ class PongNetSvc {
     );
 
     _myBroadcast = BonsoirBroadcast(service: _mySvc);
-    await _myBroadcast.ready;
-    await _myBroadcast.start();
+    await _myBroadcast?.ready;
+    await _myBroadcast?.start();
 
     _sock = await RawDatagramSocket.bind(InternetAddress.anyIPv4, PONG_PORT);
-    _sock.listen(
+    _sock?.listen(
       (evt) => _onEvent(onMsg, evt),
       onError: (err) => _finishedHandler(onDone, err),
       onDone: () => _finishedHandler(onDone),
@@ -121,11 +122,12 @@ class PongNetSvc {
     _safeCloseSocket();
   }
 
-  void joinGame(String name, void Function(PongData) onMsg, void Function() onDone) async {
+  void joinGame(String name, void Function(PongData) onMsg,
+      void Function() onDone) async {
     final hostSvc = _host2svc[name];
-    _oppoAddress = InternetAddress(hostSvc.ip);
+    _oppoAddress = InternetAddress(hostSvc!.ip);
     _sock = await RawDatagramSocket.bind(InternetAddress.anyIPv4, PONG_PORT);
-    _sock.listen(
+    _sock?.listen(
       (evt) => _onEvent(onMsg, evt),
       onError: (err) => _finishedHandler(onDone, err),
       onDone: () => _finishedHandler(onDone),
@@ -140,7 +142,7 @@ class PongNetSvc {
   void send(PongData data) {
     _sock?.send(
       data.toNetBundle(width, height).buffer.asInt8List(),
-      _oppoAddress,
+      _oppoAddress!,
       PONG_PORT,
     );
   }
@@ -157,23 +159,19 @@ class PongNetSvc {
     onMsg(data);
   }
 
-  void _finishedHandler(Function() onDone, [Object e]) {
+  void _finishedHandler(Function() onDone, [Object? e]) {
     if (e != null) print(e);
     onDone();
   }
 
   void _safeCloseSocket() {
-    if (_sock != null) {
-      _sock.close();
-      _sock = null;
-    }
+    _sock?.close();
+    _sock = null;
   }
 
   Future<void> _safeStopBroadcast() async {
-    if (_myBroadcast != null) {
-      await _myBroadcast.stop();
-      _myBroadcast = null;
-    }
-    if (_mySvc != null) _mySvc = null;
+    await _myBroadcast?.stop();
+    _myBroadcast = null;
+    _mySvc = null;
   }
 }

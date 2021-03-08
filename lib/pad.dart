@@ -1,15 +1,12 @@
 import 'dart:ui';
 
-import 'package:flame/anchor.dart';
-import 'package:flame/components/component.dart';
-import 'package:flame/components/mixins/has_game_ref.dart';
-import 'package:flame/components/mixins/resizable.dart';
 import 'package:flutter/material.dart';
+import 'package:flame/components.dart';
 
 import 'constants.dart';
 import 'game.dart';
 
-class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
+class Pad extends PositionComponent with HasGameRef<MoPongGame> {
   final bool isPlayer;
   double direction = 0.0; // from -1 (max speed to L) to 1 (max speed to R)
   double speed = 100; // px/sec, until resize
@@ -69,10 +66,10 @@ class Pad extends PositionComponent with Resizable, HasGameRef<MoPong> {
   }
 
   @override
-  void resize(Size size) {
-    super.resize(size);
-    speed = PAD_SPEED_RATIO * size.width;
-    height = PAD_HEIGHT_RATIO * size.height;
-    width = PAD_WIDTH_RATIO * size.width;
+  void onGameResize(Vector2 gameSize) {
+    super.onGameResize(gameSize);
+    speed = PAD_SPEED_RATIO * gameSize.x;
+    height = PAD_HEIGHT_RATIO * gameSize.y;
+    width = PAD_WIDTH_RATIO * gameSize.x;
   }
 }

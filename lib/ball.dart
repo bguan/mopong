@@ -1,16 +1,15 @@
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:flame/anchor.dart';
-import 'package:flame/components/component.dart';
-import 'package:flame/components/mixins/has_game_ref.dart';
-import 'package:flame/components/mixins/resizable.dart';
+import 'package:flame/components.dart';
+import 'package:flame_audio/flame_audio.dart';
+
 import 'package:flutter/material.dart';
 
 import 'constants.dart';
 import 'game.dart';
 
-class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
+class Ball extends PositionComponent with HasGameRef<MoPongGame> {
   final random = Random();
   var vx = 0.0; // px/sec
   var rad = 5.0; // until resize
@@ -62,15 +61,17 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
           x = gameRef.width;
           vx = -vx;
         } else if (gameRef.isSingle && gameRef.oppoPad.touch(rect) && vy < 0) {
-          gameRef.audio.play(POP_FILE);
+          FlameAudio.play(POP_FILE);
           y = gameRef.oppoPad.y + 2 * gameRef.oppoPad.height + 3 * rad;
           vy = -vy;
-          vx += (gameRef.oppoPad.direction + .3*(random.nextDouble() - .5)) * spin;
+          vx += (gameRef.oppoPad.direction + .3 * (random.nextDouble() - .5)) *
+              spin;
         } else if (gameRef.myPad.touch(rect) && vy > 0) {
-          gameRef.audio.play(POP_FILE);
+          FlameAudio.play(POP_FILE);
           y = gameRef.myPad.y - 2 * gameRef.myPad.height - 3 * rad;
           vy = -vy;
-          vx += (gameRef.myPad.direction + .3*(random.nextDouble() - .5)) * spin;
+          vx += (gameRef.myPad.direction + .3 * (random.nextDouble() - .5)) *
+              spin;
         } else if (gameRef.isSingle && y <= gameRef.margin && vy < 0) {
           // bounced top
           gameRef.addMyScore();
@@ -98,12 +99,12 @@ class Ball extends PositionComponent with Resizable, HasGameRef<MoPong> {
   }
 
   @override
-  void resize(Size size) {
-    super.resize(size);
-    speed = BALL_SPEED_RATIO * size.height;
-    spin = SPIN_RATIO * size.width;
+  void onGameResize(Vector2 gameSize) {
+    super.onGameResize(gameSize);
+    speed = BALL_SPEED_RATIO * gameSize.y;
+    spin = SPIN_RATIO * gameSize.x;
     vy = vy.sign * speed;
-    rad = BALL_RAD_RATIO * size.height;
+    rad = BALL_RAD_RATIO * gameSize.y;
     width = 2 * rad;
     height = 2 * rad;
   }

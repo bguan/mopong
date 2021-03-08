@@ -1,11 +1,17 @@
 import 'dart:ui';
+
 import 'package:clock/clock.dart';
-import 'package:flame/flame_audio.dart';
-import 'package:flame/game.dart';
-import 'package:flame/gestures.dart';
-import 'package:flame/position.dart';
-import 'package:flame/text_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+// ignore: import_of_legacy_library_into_null_safe
+import 'package:flame/game.dart';
+// ignore: import_of_legacy_library_into_null_safe
+import 'package:flame_audio/flame_audio.dart';
+// ignore: import_of_legacy_library_into_null_safe
+import 'package:flame/gestures.dart';
+
+// ignore: import_of_legacy_library_into_null_safe
 import 'package:synchronized/synchronized.dart';
 
 import 'ball.dart';
@@ -15,12 +21,10 @@ import 'net.dart';
 import 'pad.dart';
 
 /// Game class of Mobile Pong.
-class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
-  final audio = FlameAudio();
+class MoPongGame extends BaseGame with HorizontalDragDetector {
   final txtCfg = TextConfig(fontSize: 20.0, color: Colors.white);
-  final String myName = genName();
-  PongNetSvc svc;
-  Widget overlay;
+  final String gameHostHandle = genHostHandle();
+  PongNetSvc? pongNetSvc;
   var _mode = GameMode.over; // private so only MoPong can change game mode
   get mode => _mode;
 
@@ -42,39 +46,47 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
   DateTime lastRcvTstmp = clock.now(); // timestamp of last received
   double width = 400; // until resize
   double height = 600; // until resize
-  String topMsg;
+  String topMsg = '';
 
   final lock = new Lock(); // to handle concurrent updates
 
-  MoPong() : super() {
-    add(myPad);
-    add(oppoPad);
-    add(ball);
-    audio.disableLog();
-    audio.loadAll([CRASH_FILE, CRASH_FILE, TADA_FILE, WAHWAH_FILE]);
-    svc = PongNetSvc(myName, _onDiscovery, width, height);
-  }
-
-  void addMyScore() {
-    audio.play(CRASH_FILE);
-    myScore += 1;
-    if (myScore >= MAX_SCORE) audio.play(TADA_FILE);
-  }
-
-  void addOpponentScore() {
-    audio.play(CRASH_FILE);
-    oppoScore += 1;
-    if (oppoScore >= MAX_SCORE) audio.play(WAHWAH_FILE);
+  MoPongGame() : super() {
+    pongNetSvc =
+        kIsWeb ? null : PongNetSvc(gameHostHandle, _onDiscovery, width, height);
   }
 
   @override
-  void resize(Size size) {
-    super.resize(size);
-    height = size.height;
-    width = size.width;
+  onLoad() async {
+    add(myPad);
+    add(oppoPad);
+    add(ball);
+    if (!kIsWeb)
+      FlameAudio.audioCache
+          .loadAll([POP_FILE, CRASH_FILE, TADA_FILE, WAH_FILE]);
+  }
+
+  void addMyScore() {
+    FlameAudio.play(CRASH_FILE);
+    myScore += 1;
+    if (myScore >= MAX_SCORE) FlameAudio.play(TADA_FILE);
+  }
+
+  void addOpponentScore() {
+    FlameAudio.play(CRASH_FILE);
+    oppoScore += 1;
+    if (oppoScore >= MAX_SCORE) FlameAudio.play(WAH_FILE);
+  }
+
+  @override
+  void onResize(Vector2 canvasSize) {
+    super.onResize(canvasSize);
+    height = canvasSize.y;
+    width = canvasSize.x;
     margin = MARGIN_RATIO * height;
-    svc.width = width;
-    svc.height = height;
+    if (pongNetSvc != null) {
+      pongNetSvc!.width = width;
+      pongNetSvc!.height = height;
+    }
   }
 
   @override
@@ -97,16 +109,16 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
     }
 
     if (endGame) {
-      if (isGuest) svc.leaveGame();
-      if (isHost) svc.stopHosting();
-      _showGameOverMenu();
+      if (isGuest) pongNetSvc?.leaveGame();
+      if (isHost) pongNetSvc?.stopHosting();
+      showMainMenu();
     }
   }
 
   // send game state over network.
   // let pad or ball trigger this to reduce traffic.
   void sendStateUpdate() {
-    svc.send(
+    pongNetSvc?.send(
       PongData(
         sndCount++,
         myPad.x,
@@ -122,7 +134,7 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
   }
 
   void _onDiscovery() {
-    if (isOver) _showGameOverMenu(); // update game over menu only when isOver
+    if (isOver) showMainMenu(); // update game over menu only when isOver
   }
 
   @override
@@ -131,62 +143,34 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
     final bgPaint = Paint();
     bgPaint.color = Colors.black;
     canvas.drawRect(bgRect, bgPaint);
-    if (isOver && overlay == null) _showGameOverMenu();
-    txtCfg.render(canvas, "Score $myScore:$oppoScore", Position(20, 20));
+    txtCfg.render(canvas, "Score $myScore:$oppoScore", Vector2(20, 20));
     super.render(canvas);
   }
 
-  void _showGameOverMenu() {
+  void showMainMenu() {
     _mode = GameMode.over; // just in case coming from weird state
     _safeRemoveOverlay();
-    overlay = Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (topMsg != null && topMsg.length > 0)
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: 20.0),
-              child: Text(topMsg),
-            ),
-          _gameButton('Single Player', _startSinglePlayer),
-          _gameButton('Host Network Game', _hostNetGame),
-          for (var sname in svc.serviceNames) _gameButton('Play $sname', () => _joinNetGame(sname))
-        ],
-      ),
-    );
-    addWidgetOverlay(OVERLAY_ID, overlay);
+    overlays.add(MAIN_MENU_OVERLAY_ID);
   }
 
   void _safeRemoveOverlay() {
-    if (overlay == null) return;
-    removeWidgetOverlay(OVERLAY_ID);
-    overlay = null;
+    overlays.remove(MAIN_MENU_OVERLAY_ID);
+    overlays.remove(HOST_WAITING_OVERLAY_ID);
   }
 
   void onHorizontalDragUpdate(DragUpdateDetails details) {
     lastFingerX = details.globalPosition.dx;
   }
 
-  Widget _gameButton(String txt, void Function() handler) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 20.0),
-      child: SizedBox(
-        width: BUTTON_SIZE_RATIO * width,
-        child: RaisedButton(child: Text(txt), onPressed: handler),
-      ),
-    );
-  }
-
-  void _startSinglePlayer() {
+  void startSinglePlayer() {
     _safeRemoveOverlay();
     myScore = 0;
     oppoScore = 0;
     _mode = GameMode.single;
-    audio.play(POP_FILE);
+    FlameAudio.play(POP_FILE);
   }
 
-  void _hostNetGame() async {
+  void hostNetGame() async {
     _safeRemoveOverlay();
     _mode = GameMode.wait;
     myScore = 0;
@@ -196,26 +180,13 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
     ball.y = margin + 2 * myPad.height;
     ball.vy = ball.speed;
     ball.vx = 0;
-    svc.startHosting((p) => _onMsgFromGuest(p), _stopHosting);
-    overlay = Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 20.0),
-            child: Text('Hosting Game as $myName...'),
-          ),
-          _gameButton('Cancel', _stopHosting),
-        ],
-      ),
-    );
-    addWidgetOverlay(OVERLAY_ID, overlay);
+    pongNetSvc?.startHosting((p) => _onMsgFromGuest(p), stopHosting);
+    overlays.add(HOST_WAITING_OVERLAY_ID);
   }
 
-  void _stopHosting() {
-    svc.stopHosting();
-    _showGameOverMenu();
+  void stopHosting() {
+    pongNetSvc?.stopHosting();
+    showMainMenu();
   }
 
   void _onMsgFromGuest(PongData data) async {
@@ -231,7 +202,7 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
     lock.synchronized(() => _updateOnReceive(data));
   }
 
-  void _joinNetGame(String hostSvcName) async {
+  void joinNetGame(String hostSvcName) async {
     _safeRemoveOverlay();
     _mode = GameMode.guest;
     myScore = 0;
@@ -241,13 +212,13 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
     ball.y = height - margin - 2 * myPad.height;
     ball.vy = -ball.speed;
     ball.vx = 0;
-    svc.joinGame(hostSvcName, _onMsgFromHost, _leaveNetGame);
+    pongNetSvc?.joinGame(hostSvcName, _onMsgFromHost, leaveNetGame);
     lastRcvTstmp = clock.now();
   }
 
-  void _leaveNetGame() {
-    svc.leaveGame();
-    _showGameOverMenu();
+  void leaveNetGame() {
+    pongNetSvc?.leaveGame();
+    showMainMenu();
   }
 
   void _onMsgFromHost(PongData data) {
@@ -257,7 +228,7 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
       return; // ignore if out of sequence and not underflow
 
     lock.synchronized(() => _updateOnReceive(data));
-    if (myScore == MAX_SCORE || oppoScore == MAX_SCORE) _leaveNetGame();
+    if (myScore == MAX_SCORE || oppoScore == MAX_SCORE) leaveNetGame();
   }
 
   void _updateOnReceive(PongData data) async {
@@ -269,15 +240,15 @@ class MoPong extends BaseGame with HasWidgetsOverlay, HorizontalDragDetector {
       if (myScore < data.myScore || oppoScore < data.oppoScore) {
         // score changed, opponent must have detected crashed, play Crash
         if (data.oppoScore == MAX_SCORE) {
-          audio.play(WAHWAH_FILE);
+          FlameAudio.play(WAH_FILE);
         } else if (data.myScore == MAX_SCORE) {
-          audio.play(TADA_FILE);
+          FlameAudio.play(TADA_FILE);
         } else {
-          audio.play(CRASH_FILE);
+          FlameAudio.play(CRASH_FILE);
         }
       } else if (ball.vy.sign != data.bvy.sign) {
         // ball Y direction changed, host must have detected hit, play Pop
-        audio.play(POP_FILE);
+        FlameAudio.play(POP_FILE);
       }
 
       myScore = data.myScore;
