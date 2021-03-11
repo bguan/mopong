@@ -1,6 +1,8 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+
+// ignore: import_of_legacy_library_into_null_safe
 import 'package:flame/components.dart';
 
 import 'constants.dart';
@@ -54,6 +56,7 @@ class Pad extends PositionComponent with HasGameRef<MoPongGame> {
 
   @override
   void render(Canvas canvas) {
+    super.render(canvas);
     final padRect = Rect.fromLTWH(x - width / 2, y - height / 2, width, height);
     final padPaint = Paint();
     padPaint.color = isPlayer ? Colors.blue : Colors.red;

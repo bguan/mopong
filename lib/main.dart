@@ -7,15 +7,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'constants.dart';
+import 'namer.dart';
+import 'net.dart';
 import 'game.dart';
 
-MoPongGame mopongGame = MoPongGame();
+final String gameHostHandle = genHostHandle();
+final PongNetSvc? pongNetSvc =
+    kIsWeb ? null : PongNetSvc(gameHostHandle, onDiscovery);
+final pongGame = MoPongGame(pongNetSvc);
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   Flame.device.fullScreen();
   Flame.device.setOrientation(DeviceOrientation.portraitUp);
   runApp(MoPongApp());
+}
+
+void onDiscovery() {
+  pongGame.onDiscovery();
 }
 
 class MoPongApp extends StatelessWidget {
@@ -25,16 +34,16 @@ class MoPongApp extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (mopongGame.topMsg.length > 0)
+          if (pongGame.topMsg.length > 0)
             Padding(
               padding: EdgeInsets.symmetric(vertical: 20.0),
-              child: Text(mopongGame.topMsg),
+              child: Text(pongGame.topMsg),
             ),
-          gameButton('Single Player', mopongGame.startSinglePlayer),
-          if (!kIsWeb) gameButton('Host Network Game', mopongGame.hostNetGame),
+          gameButton('Single Player', pongGame.startSinglePlayer),
+          if (!kIsWeb) gameButton('Host Network Game', pongGame.hostNetGame),
           if (!kIsWeb)
-            for (var svcname in mopongGame.pongNetSvc!.serviceNames)
-              gameButton('Play $svcname', () => mopongGame.joinNetGame(svcname))
+            for (var svc in pongGame.pongNetSvc!.serviceNames)
+              gameButton('Play $svc', () => pongGame.joinNetGame(svc))
         ],
       ),
     );
@@ -48,9 +57,9 @@ class MoPongApp extends StatelessWidget {
         children: [
           Padding(
             padding: EdgeInsets.symmetric(vertical: 20.0),
-            child: Text('Hosting Game as ${mopongGame.gameHostHandle}...'),
+            child: Text('Hosting Game as ${pongGame.gameHostHandle}...'),
           ),
-          gameButton('Cancel', mopongGame.stopHosting),
+          gameButton('Cancel', pongGame.stopHosting),
         ],
       ),
     );
@@ -60,7 +69,7 @@ class MoPongApp extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 20.0),
       child: SizedBox(
-        width: BUTTON_SIZE_RATIO * mopongGame.width,
+        width: BUTTON_SIZE_RATIO * pongGame.width,
         child: ElevatedButton(child: Text(txt), onPressed: handler),
       ),
     );
@@ -69,7 +78,7 @@ class MoPongApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GameWidget<MoPongGame>(
-      game: mopongGame,
+      game: pongGame,
       overlayBuilderMap: {
         MAIN_MENU_OVERLAY_ID: mainMenuBuilder,
         HOST_WAITING_OVERLAY_ID: hostWaitingBuilder,

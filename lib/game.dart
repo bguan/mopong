@@ -24,7 +24,7 @@ import 'pad.dart';
 class MoPongGame extends BaseGame with HorizontalDragDetector {
   final txtCfg = TextConfig(fontSize: 20.0, color: Colors.white);
   final String gameHostHandle = genHostHandle();
-  PongNetSvc? pongNetSvc;
+  final PongNetSvc? pongNetSvc;
   var _mode = GameMode.over; // private so only MoPong can change game mode
   get mode => _mode;
 
@@ -50,10 +50,7 @@ class MoPongGame extends BaseGame with HorizontalDragDetector {
 
   final lock = new Lock(); // to handle concurrent updates
 
-  MoPongGame() : super() {
-    pongNetSvc =
-        kIsWeb ? null : PongNetSvc(gameHostHandle, _onDiscovery, width, height);
-  }
+  MoPongGame(this.pongNetSvc) : super();
 
   @override
   onLoad() async {
@@ -83,10 +80,6 @@ class MoPongGame extends BaseGame with HorizontalDragDetector {
     height = canvasSize.y;
     width = canvasSize.x;
     margin = MARGIN_RATIO * height;
-    if (pongNetSvc != null) {
-      pongNetSvc!.width = width;
-      pongNetSvc!.height = height;
-    }
   }
 
   @override
@@ -115,25 +108,30 @@ class MoPongGame extends BaseGame with HorizontalDragDetector {
     }
   }
 
+  int xNorm(num n) => n * SCREEN_NORM_WIDTH ~/ width;
+  int yNorm(num n) => n * SCREEN_NORM_HEIGHT ~/ height;
+  double xDenorm(num n) => n * width / SCREEN_NORM_WIDTH;
+  double yDenorm(num n) => n * height / SCREEN_NORM_WIDTH;
+
   // send game state over network.
   // let pad or ball trigger this to reduce traffic.
   void sendStateUpdate() {
     pongNetSvc?.send(
       PongData(
         sndCount++,
-        myPad.x,
-        ball.x,
-        ball.y,
-        ball.vx,
-        ball.vy,
-        ball.pause,
+        xNorm(myPad.x),
+        xNorm(ball.x),
+        yNorm(ball.y),
+        xNorm(ball.vx),
+        yNorm(ball.vy),
+        ball.pause.toInt(),
         myScore,
         oppoScore,
       ),
     );
   }
 
-  void _onDiscovery() {
+  void onDiscovery() {
     if (isOver) showMainMenu(); // update game over menu only when isOver
   }
 
@@ -234,7 +232,7 @@ class MoPongGame extends BaseGame with HorizontalDragDetector {
   void _updateOnReceive(PongData data) async {
     rcvCount = data.count;
     lastRcvTstmp = clock.now();
-    oppoPad.x = data.px;
+    oppoPad.x = xDenorm(data.px);
     if (ball.vy < 0) {
       // ball going away from me, let opponent update my states & scores
       if (myScore < data.myScore || oppoScore < data.oppoScore) {
@@ -253,11 +251,11 @@ class MoPongGame extends BaseGame with HorizontalDragDetector {
 
       myScore = data.myScore;
       oppoScore = data.oppoScore;
-      ball.x = data.bx;
-      ball.y = data.by;
-      ball.vx = data.bvx;
-      ball.vy = data.bvy;
-      ball.pause = data.pause;
+      ball.x = xDenorm(data.bx);
+      ball.y = yDenorm(data.by);
+      ball.vx = xDenorm(data.bvx);
+      ball.vy = yDenorm(data.bvy);
+      ball.pause = data.pause.toDouble();
     }
   }
 }

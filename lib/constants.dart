@@ -17,6 +17,8 @@ const BALL_RAD_RATIO = .005; // of screen height
 const SPIN_RATIO = .2; // of screen width, side spin of ball hitting moving pad
 const PAUSE_INTERVAL = 2.0; // pause in secs when a point is scored
 const MAX_NET_WAIT = Duration(seconds: 5); // assume opponent disconnected after
+const SCREEN_NORM_HEIGHT = 1000;
+const SCREEN_NORM_WIDTH = 1000;
 
 enum GameMode {
   over, // game is over, showing game over menu

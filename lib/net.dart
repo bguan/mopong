@@ -8,13 +8,15 @@ import 'constants.dart';
 
 /// Pong Data to pack and send, or receive and unpack.
 ///
-/// Need to normalize to 2^15-1 i.e. 2-byte int size, for screen width & height.
+/// Need to normalize by assuming screen width and height are 1000 units.
+/// SCREEN_NORM_HEIGHT, SCREEN_NORM_WIDTH.
 /// Need to flip Y on send as opponent sees it upside down to us.
 /// Need to swap myScore and oppoScore on send.
 class PongData {
   final int count;
-  final double px, bx, by, bvx, bvy, pause;
+  final int px, bx, by, bvx, bvy; // padX, ballX, ballY, ballVeloX, , ballVeloY
   final int myScore, oppoScore;
+  final int pause;
 
   PongData(
     this.count,
@@ -28,41 +30,35 @@ class PongData {
     this.oppoScore,
   );
 
-  PongData.fromPayload(Int16List data, double width, double height)
-      : count = fromInt16(data, 0, width).toInt(),
-        px = fromInt16(data, 1, width),
-        bx = fromInt16(data, 2, width),
-        by = fromInt16(data, 3, height),
-        bvx = fromInt16(data, 4, width),
-        bvy = fromInt16(data, 5, height),
-        pause = fromInt16(data, 6),
-        myScore = fromInt16(data, 7).toInt(),
-        oppoScore = fromInt16(data, 8).toInt();
+  PongData.fromPayload(Int16List data)
+      : count = data[0],
+        px = data[1],
+        bx = data[2],
+        by = data[3],
+        bvx = data[4],
+        bvy = data[5],
+        pause = data[6],
+        myScore = data[7],
+        oppoScore = data[8];
 
-  Int16List toNetBundle(double width, double height) {
+  Int16List toNetBundle() {
     return Int16List.fromList([
       count,
-      toInt16(px, width),
-      toInt16(bx, width),
-      toInt16(height - by, height),
-      toInt16(bvx, width),
-      toInt16(-bvy, height),
-      toInt16(pause),
-      toInt16(oppoScore.toDouble()),
-      toInt16(myScore.toDouble()),
+      px,
+      bx,
+      -by,
+      bvx,
+      -bvy,
+      pause,
+      oppoScore,
+      myScore,
     ]);
   }
 }
 
-int toInt16(double v, [double max = 32767]) => 32767 * v ~/ max;
-
-double fromInt16(Int16List d, int i, [double max = 32767]) =>
-    d.length > i ? max * d[i] / 32767 : 0;
-
 /// Pong Networking Service for Host and Guest, incl discovery & communication.
 class PongNetSvc {
   String myName;
-  double width, height; // size of my world
   BonsoirService? _mySvc; // network game I am hosting
   BonsoirBroadcast? _myBroadcast;
   Map<String, ResolvedBonsoirService> _host2svc = {}; // other hosts
@@ -70,7 +66,7 @@ class PongNetSvc {
   InternetAddress? _oppoAddress;
   RawDatagramSocket? _sock;
 
-  PongNetSvc(this.myName, this._onDiscovery, this.width, this.height) {
+  PongNetSvc(this.myName, this._onDiscovery) {
     _scan();
   }
 
@@ -141,7 +137,7 @@ class PongNetSvc {
 
   void send(PongData data) {
     _sock?.send(
-      data.toNetBundle(width, height).buffer.asInt8List(),
+      data.toNetBundle().buffer.asInt8List(),
       _oppoAddress!,
       PONG_PORT,
     );
@@ -150,11 +146,7 @@ class PongNetSvc {
   void _onEvent(Function(PongData) onMsg, RawSocketEvent event) {
     final packet = _sock?.receive();
     if (packet == null) return;
-    final data = PongData.fromPayload(
-      packet.data.buffer.asInt16List(),
-      width,
-      height,
-    );
+    final data = PongData.fromPayload(packet.data.buffer.asInt16List());
     _oppoAddress = packet.address;
     onMsg(data);
   }

@@ -1,7 +1,9 @@
 import 'dart:math';
 import 'dart:ui';
 
+// ignore: import_of_legacy_library_into_null_safe
 import 'package:flame/components.dart';
+// ignore: import_of_legacy_library_into_null_safe
 import 'package:flame_audio/flame_audio.dart';
 
 import 'package:flutter/material.dart';
@@ -92,6 +94,7 @@ class Ball extends PositionComponent with HasGameRef<MoPongGame> {
 
   @override
   void render(Canvas canvas) {
+    super.render(canvas);
     if (gameRef.isOver || gameRef.isWaiting) return;
     final ballPaint = Paint();
     ballPaint.color = Colors.white;
