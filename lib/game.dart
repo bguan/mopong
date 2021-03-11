@@ -52,6 +52,11 @@ class MoPongGame extends BaseGame with HorizontalDragDetector {
 
   MoPongGame(this.pongNetSvc) : super();
 
+  int xNorm(num n) => n * SCREEN_NORM_WIDTH ~/ width;
+  int yNorm(num n) => n * SCREEN_NORM_HEIGHT ~/ height;
+  double xDenorm(num n) => n * width / SCREEN_NORM_WIDTH;
+  double yDenorm(num n) => n * height / SCREEN_NORM_WIDTH;
+
   @override
   onLoad() async {
     add(myPad);
@@ -107,11 +112,6 @@ class MoPongGame extends BaseGame with HorizontalDragDetector {
       showMainMenu();
     }
   }
-
-  int xNorm(num n) => n * SCREEN_NORM_WIDTH ~/ width;
-  int yNorm(num n) => n * SCREEN_NORM_HEIGHT ~/ height;
-  double xDenorm(num n) => n * width / SCREEN_NORM_WIDTH;
-  double yDenorm(num n) => n * height / SCREEN_NORM_WIDTH;
 
   // send game state over network.
   // let pad or ball trigger this to reduce traffic.

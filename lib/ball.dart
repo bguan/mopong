@@ -94,11 +94,11 @@ class Ball extends PositionComponent with HasGameRef<MoPongGame> {
 
   @override
   void render(Canvas canvas) {
-    super.render(canvas);
     if (gameRef.isOver || gameRef.isWaiting) return;
     final ballPaint = Paint();
     ballPaint.color = Colors.white;
     canvas.drawCircle(Offset(x, y), rad, ballPaint);
+    super.render(canvas);
   }
 
   @override

@@ -56,11 +56,11 @@ class Pad extends PositionComponent with HasGameRef<MoPongGame> {
 
   @override
   void render(Canvas canvas) {
-    super.render(canvas);
     final padRect = Rect.fromLTWH(x - width / 2, y - height / 2, width, height);
     final padPaint = Paint();
     padPaint.color = isPlayer ? Colors.blue : Colors.red;
     canvas.drawRect(padRect, padPaint);
+    super.render(canvas);
   }
 
   bool touch(Rect objRect) {
