@@ -31,7 +31,7 @@ class Ball extends PositionComponent with HasGameRef<PongGame> {
   void reset({double normVY: NORM_SPEED, double normX: .5, double normY: .5}) {
     scale = Vector2(1, 1);
     anchor = Anchor.center;
-    _pause = 0.0;
+    _pause = normVY <= 0 ? PAUSE_INTERVAL : 0.0;
     _vx = 0.0;
     _vy = _pxMap.toDevHgt(normVY);
     width = _pxMap.toDevHgt(2 * NORM_RAD);
@@ -39,6 +39,7 @@ class Ball extends PositionComponent with HasGameRef<PongGame> {
     position = _pxMap.toDevPos(normX, normY);
   }
 
+  bool get isPaused => _pause > 0;
   double get vx => _vx;
   double get vy => _vy;
   double get pause => _pause;
@@ -56,18 +57,7 @@ class Ball extends PositionComponent with HasGameRef<PongGame> {
 
     if (_pause > 0) {
       // if we are in a paused state, reduce the count down by elapsed time
-      _pause -= dt;
-      // at the end of pause, make sure ball is not beyond bounds
-      if (_pause <= 0) {
-        y = y.clamp(
-          gameRef.topMargin + gameRef.oppoPad.height + height,
-          gameRef.bottomMargin - gameRef.myPad.height - height,
-        );
-        x = x.clamp(
-          gameRef.leftMargin + width,
-          gameRef.rightMargin - width,
-        );
-      }
+      _pause = _pause - dt;
     } else {
       x = (x + dt * vx).clamp(gameRef.leftMargin, gameRef.rightMargin);
       y = (y + dt * vy).clamp(gameRef.topMargin, gameRef.bottomMargin);
@@ -82,31 +72,35 @@ class Ball extends PositionComponent with HasGameRef<PongGame> {
         _vx = -vx;
       }
 
-      if (gameRef.myPad.touch(ballRect)) {
+      if (gameRef.myPad.touch(ballRect) && vy > 0) {
         FlameAudio.play(POP_FILE);
-        y = gameRef.myPad.y - gameRef.myPad.height - 2 * radius;
+        y = gameRef.myPad.y - gameRef.myPad.height / 2 - 2 * radius;
         _vy = -vy;
         _vx += randSpin(gameRef.myPad.vx.sign);
-      } else if (y >= gameRef.bottomMargin - radius) {
+      } else if (y + radius >= gameRef.bottomMargin && vy > 0) {
         // bounced bottom
-        gameRef.addOpponentScore();
         _pause = PAUSE_INTERVAL;
         _vx = 0;
         _vy = -vy;
+        y = gameRef.myPad.y - gameRef.myPad.height / 2 - 2 * radius;
+        x = gameRef.myPad.x;
+        gameRef.addOpponentScore(gameRef.oppoScore + 1);
       }
 
       if (gameRef.isSingle) {
-        if (gameRef.oppoPad.touch(ballRect)) {
+        if (gameRef.oppoPad.touch(ballRect) && vy < 0) {
           FlameAudio.play(POP_FILE);
-          y = gameRef.oppoPad.y + gameRef.oppoPad.height + 2 * radius;
+          y = gameRef.oppoPad.y + gameRef.oppoPad.height / 2 + 2 * radius;
           _vy = -vy;
           _vx += randSpin(gameRef.myPad.vx.sign);
-        } else if (y <= gameRef.topMargin + radius) {
+        } else if (y - radius <= gameRef.topMargin && vy < 0) {
           // bounced top
-          gameRef.addMyScore();
           _pause = PAUSE_INTERVAL;
           _vx = 0;
           _vy = -vy;
+          y = gameRef.oppoPad.y + gameRef.oppoPad.height / 2 + 2 * radius;
+          x = gameRef.oppoPad.x;
+          gameRef.addMyScore();
         }
       }
     }

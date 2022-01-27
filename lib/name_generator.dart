@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'dart:typed_data';
+
 class NameGenerator {
   static const List<String> ANIMALS = [
     'Rat',
@@ -117,11 +119,18 @@ class NameGenerator {
     'Lonely'
   ];
 
-  static String genNewName() {
-    var rng = new Random();
-    final animalIdx = rng.nextInt(ANIMALS.length);
-    final adjIdx = rng.nextInt(ADJECTIVES.length);
-
+  static String genNewName(Uint8List addressByteIPv4) {
+    int lastByte = addressByteIPv4.last;
+    late final int animalIdx;
+    late final int adjIdx;
+    if (lastByte == 0) {
+      var rng = new Random();
+      animalIdx = rng.nextInt(ANIMALS.length);
+      adjIdx = rng.nextInt(ADJECTIVES.length);
+    } else {
+      animalIdx = lastByte >> 4;
+      adjIdx = lastByte & 0x0F;
+    }
     return ADJECTIVES[adjIdx] + ' ' + ANIMALS[animalIdx];
   }
 }

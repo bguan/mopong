@@ -11,7 +11,7 @@ import 'package:logging/logging.dart';
 class PongData {
   static const double NORM_FLOAT_BASE = 1000000.0; // express float as fraction
 
-  final int count; // need to be sent as Int64 or underflow may happen
+  final int count; // need to be sent as Int32 or underflow may happen
   final double px, bx, by, bvx, bvy;
   final int myScore, oppoScore;
   final double pause;
@@ -34,7 +34,7 @@ class PongData {
   static double normIntToFloat(int ni) =>
       (ni / NORM_FLOAT_BASE).clamp(-1.0, 1.0);
 
-  PongData.fromPayload(Int64List data)
+  PongData.fromPayload(Int32List data)
       : count = data[0],
         px = normIntToFloat(data[1]),
         bx = normIntToFloat(data[2]),
@@ -45,8 +45,8 @@ class PongData {
         myScore = data[7],
         oppoScore = data[8];
 
-  Int64List toNetBundle() {
-    return Int64List.fromList([
+  Int32List toNetBundle() {
+    return Int32List.fromList([
       count,
       normFloatToInt(px),
       normFloatToInt(bx),
@@ -54,8 +54,8 @@ class PongData {
       normFloatToInt(bvx),
       normFloatToInt(bvy),
       normFloatToInt(pause),
-      oppoScore,
       myScore,
+      oppoScore,
     ]);
   }
 }
@@ -72,10 +72,12 @@ class PongNetSvc {
   BonsoirBroadcast? _myBroadcast;
   Map<String, ResolvedBonsoirService> _host2svc = {}; // other hosts
   Function _onDiscovery;
+  InternetAddress? _myAddress;
   InternetAddress? _oppoAddress;
   RawDatagramSocket? _sock;
 
-  PongNetSvc(this.myName, this._onDiscovery) {
+  PongNetSvc(Uint8List addressIPv4, this.myName, this._onDiscovery) {
+    _myAddress = InternetAddress.fromRawAddress(addressIPv4);
     _scan();
   }
 
@@ -119,8 +121,9 @@ class PongNetSvc {
     await _myBroadcast?.ready;
     await _myBroadcast?.start();
 
+    _safeCloseSocket();
     _sock = await RawDatagramSocket.bind(InternetAddress.anyIPv4, PONG_PORT);
-    log.info("Start Hosting game @ ${_sock!.address} as $myName...");
+    log.info("Start Hosting game @ $_myAddress as $myName...");
     _sock!.listen(
       (evt) => _onEvent(onMsg, evt),
       onError: (err) => _finishedHandler(onDone, err),
@@ -145,6 +148,7 @@ class PongNetSvc {
     if (hostSvc != null && hostSvc.ip != null) {
       _oppoAddress = InternetAddress(hostSvc.ip!);
       log.info("Joining net game $name @ $_oppoAddress as $myName...");
+      _safeCloseSocket();
       _sock = await RawDatagramSocket.bind(InternetAddress.anyIPv4, PONG_PORT);
       _sock!.listen(
         (evt) => _onEvent(onMsg, evt),
@@ -174,7 +178,7 @@ class PongNetSvc {
     if (event == RawSocketEvent.read && _sock != null) {
       final packet = _sock!.receive();
       if (packet == null) return;
-      final data = PongData.fromPayload(packet.data.buffer.asInt64List());
+      final data = PongData.fromPayload(packet.data.buffer.asInt32List());
       _oppoAddress = packet.address;
       onMsg(data);
     }
