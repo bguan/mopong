@@ -317,7 +317,7 @@ class PongGame extends FlameGame with HorizontalDragDetector {
       _receiveCount = data.count;
       oppoPad.setOpponentPos(_pxMap.toDevX(1.0 - data.px));
 
-      if (ball.vy < 0 || (data.bvy > 0 && data.pause > 0)) {
+      if (ball.vy < 0 || data.bvy > 0) {
         // ball going away from me let opponent update my ball state
 
         ball.updateOnReceive(
@@ -337,7 +337,7 @@ class PongGame extends FlameGame with HorizontalDragDetector {
           FlameAudio.play(CRASH_FILE);
         }
         _myScore = data.oppoScore;
-      } else if (ball.vy.sign == data.bvy.sign) {
+      } else if (data.by > 0.8 && ball.vy.sign == data.bvy.sign) {
         // ball Y direction changed, opponent must have detected hit, play Pop
         FlameAudio.play(POP_FILE);
       }
