@@ -7,3 +7,4 @@ const PLAY_FILE = 'play-cut.wav';
 const WHISTLE_FILE = 'whistle.wav';
 const PAUSE_INTERVAL = 3.0; // pause in secs when a point is scored
 const MAX_NET_WAIT = Duration(seconds: 10); // assume opponent disconnected
+const HIT_WAIT = Duration(milliseconds: 100); // guard repeated hits due to lag

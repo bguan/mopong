@@ -223,7 +223,7 @@ class PongGame extends FlameGame with HorizontalDragDetector {
     ball.reset(normVY: Ball.NORM_SPEED);
     FlameAudio.play(WHISTLE_FILE);
     await _music.stop();
-    _music.play(PLAY_FILE);
+    await _music.play(PLAY_FILE);
   }
 
   void hostNetGame() {
@@ -293,9 +293,9 @@ class PongGame extends FlameGame with HorizontalDragDetector {
   }
 
   void _updateOnReceive(PongData data) async {
-    _lastReceiveTime = clock.now();
-
     lock.synchronized(() async {
+      _lastReceiveTime = clock.now();
+
       if (mode == GameMode.wait) {
         log.info("Received msg from guest, starting game as host...");
         overlays.remove(HOST_WAITING_OVERLAY_ID);
@@ -311,6 +311,9 @@ class PongGame extends FlameGame with HorizontalDragDetector {
       } else if (data.count < _receiveCount) {
         log.warning("Received data count ${data.count} less than last "
             "received count $_receiveCount, ignored...");
+        return;
+      } else if (_lastReceiveTime.isBefore(ball.lastHitTime.add(HIT_WAIT))) {
+        log.warning("Received data less than last hit time + wait, ignored...");
         return;
       }
 

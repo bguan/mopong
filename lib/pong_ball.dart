@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:clock/clock.dart';
 import 'package:flame/components.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,9 @@ class Ball extends PositionComponent with HasGameRef<PongGame> {
   double _vx = 0.0;
   double _vy = 0.0;
   double _pause = 0.0;
+  DateTime _lastHitTime = clock.now();
+
+  DateTime get lastHitTime => _lastHitTime;
 
   Ball({double gameWidth: 0, double gameHeight: 0}) : super() {
     _pxMap = PixelMapper(gameWidth: gameWidth, gameHeight: gameHeight);
@@ -72,13 +76,16 @@ class Ball extends PositionComponent with HasGameRef<PongGame> {
         _vx = -vx;
       }
 
+      final now = clock.now();
       if (gameRef.myPad.touch(ballRect) && vy > 0) {
+        _lastHitTime = now;
         FlameAudio.play(POP_FILE);
         y = gameRef.myPad.y - gameRef.myPad.height / 2 - 2 * radius;
         _vy = -vy;
         _vx += randSpin(gameRef.myPad.vx.sign);
       } else if (y + radius >= gameRef.bottomMargin && vy > 0) {
         // bounced bottom
+        _lastHitTime = now;
         _pause = PAUSE_INTERVAL;
         _vx = 0;
         _vy = -vy;
