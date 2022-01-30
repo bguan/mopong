@@ -38,7 +38,7 @@ class PongGame extends FlameGame with HorizontalDragDetector {
   static const INIT_HGT = 200.0; // before game size ready
 
   final TextPaint _txtPaint = TextPaint(
-    style: TextStyle(fontSize: 16.0, color: Colors.white),
+    style: TextStyle(fontSize: 14.0, color: Colors.white),
   );
 
   final lock = new Lock(); // support concurrency during network callback
@@ -401,7 +401,7 @@ class PongGame extends FlameGame with HorizontalDragDetector {
     } else if (isHost) {
       modeMsg = "Hosting as $_myNetHandle";
     } else if (isGuest) {
-      modeMsg = "Play against $_oppoHostHandle";
+      modeMsg = "Playing with $_oppoHostHandle";
     } else {
       modeMsg = "";
     }
