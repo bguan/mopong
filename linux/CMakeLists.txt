@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(runner LANGUAGES CXX)
 
-set(BINARY_NAME "mopong")
-set(APPLICATION_ID "us.guan.mopong")
+set(BINARY_NAME "netpaddle")
+set(APPLICATION_ID "com.lab600.netpaddle")
 
 cmake_policy(SET CMP0063 NEW)
 

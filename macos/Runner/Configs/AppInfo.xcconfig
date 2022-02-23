@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = Net Pong
+PRODUCT_NAME = Net Paddle
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = us.guan.mopong
+PRODUCT_BUNDLE_IDENTIFIER = com.lab600.netpaddle
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2020 us.guan. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2022 com.lab600. All rights reserved.

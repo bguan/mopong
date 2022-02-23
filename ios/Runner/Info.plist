@@ -11,7 +11,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>Net Pong</string>
+		<string>Net Paddle</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
@@ -24,7 +24,7 @@
 		<true/>
 		<key>NSBonjourServices</key>
 		<array>
-			<string>_mopong._udp</string>
+			<string>_net_paddle._udp</string>
 		</array>
 		<key>NSLocalNetworkUsageDescription</key>
 		<string>Looking for local tcp Bonjour service</string>
@@ -55,6 +55,6 @@
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
 		<key>UIStatusBarHidden</key>
-		<false/>
+		<true/>
 	</dict>
 </plist>
